@@ -366,6 +366,7 @@ def is_port_open(target, port):
         try:
             min_delay, max_delay = map(int, options.delay.split(','))
             delay = random.uniform(min_delay / 1000.0, max_delay / 1000.0)  # Convert to seconds
+            print(f"[debug] Applying random delay of {delay*1000:.2f} ms before port scan")  # Print delay in milliseconds
             time.sleep(delay)
         except ValueError:
             print("[!] Invalid delay format. Use 'min,max' (e.g., '100,9500').")
@@ -439,6 +440,7 @@ def parseArgs():
     parser.add_argument("-t", "--threads", dest="threads", action="store", type=int, default=20, required=False, help="Number of threads (default: 20).")
     parser.add_argument("-ns", "--nameserver", dest="nameserver", default=None, required=False, help="IP of the DNS server to use, instead of the --dc-ip.")
     parser.add_argument("--delay", dest="delay", type=str, default=None, help="Random delay range in milliseconds (e.g., '100,9500' for 100ms to 9500ms).")
+
 
     group_targets_source = parser.add_argument_group("Targets")
     group_targets_source.add_argument("-tf", "--targets-file", default=None, type=str, help="Path to file containing a line by line list of targets.")
