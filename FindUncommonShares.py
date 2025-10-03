@@ -7,8 +7,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from impacket.smbconnection import SMBConnection, SMB2_DIALECT_002, SMB2_DIALECT_21, SMB_DIALECT, SessionError
-from sectools.windows.ldap.wrappers import get_computers_from_domain, get_servers_from_domain, get_subnets
-from sectools.windows.ldap.ldap import raw_ldap_query, init_ldap_session
+from sectools.windows.ldap import get_computers_from_domain, get_servers_from_domain, get_subnets, raw_ldap_query, init_ldap_session
 from sectools.network.domains import is_fqdn
 from sectools.network.ip import is_ipv4_cidr, is_ipv4_addr, is_ipv6_addr, expand_cidr
 from sectools.windows.crypto import parse_lm_nt_hashes
@@ -363,9 +362,13 @@ def export_sqlite(options, results):
 
 
 def is_port_open(target, port):
-    if options.delay_range:
-        ms = random.randint(options.delay_range[0], options.delay_range[1])
-        time.sleep(ms / 1000.0)
+    if options.delay is not None:
+        try:
+            min_delay, max_delay = map(int, options.delay.split(','))
+            delay = random.uniform(min_delay / 1000.0, max_delay / 1000.0)  # Convert to seconds
+            time.sleep(delay)
+        except ValueError:
+            print("[!] Invalid delay format. Use 'min,max' (e.g., '100,9500').")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1)
@@ -435,7 +438,7 @@ def parseArgs():
     parser.add_argument("-no-colors", dest="colors", action="store_false", default=True, help="Disables colored output mode.")
     parser.add_argument("-t", "--threads", dest="threads", action="store", type=int, default=20, required=False, help="Number of threads (default: 20).")
     parser.add_argument("-ns", "--nameserver", dest="nameserver", default=None, required=False, help="IP of the DNS server to use, instead of the --dc-ip.")
-    parser.add_argument("-delay", dest="delay", help="Delay range in milliseconds before port scan (e.g., 100,9500)", default=None)
+    parser.add_argument("--delay", dest="delay", type=str, default=None, help="Random delay range in milliseconds (e.g., '100,9500' for 100ms to 9500ms).")
 
     group_targets_source = parser.add_argument_group("Targets")
     group_targets_source.add_argument("-tf", "--targets-file", default=None, type=str, help="Path to file containing a line by line list of targets.")
@@ -480,19 +483,6 @@ def parseArgs():
         sys.exit(1)
 
     options = parser.parse_args()
-
-    delay_range = None
-    if options.delay:
-        try:
-            parts = options.delay.split(",")
-            if len(parts) == 2:
-                delay_min = int(parts[0])
-                delay_max = int(parts[1])
-                delay_range = (delay_min, delay_max)
-        except:
-            print("[!] Invalid delay format. Use: min,max (e.g., 100,9500)")
-            sys.exit(1)
-
 
 
     if options.auth_password is None and options.no_pass == False and options.auth_hashes is None:
